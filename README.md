@@ -93,4 +93,4 @@ streamlit run app/streamlit_app.py
 
 ---
 
-*Mokdata Portfolio | Chams-Eddine | 2024*
+*Mokdata Portfolio | Chams-Eddine | 2026*
