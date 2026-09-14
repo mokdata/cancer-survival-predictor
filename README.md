@@ -93,4 +93,23 @@ streamlit run app/streamlit_app.py
 
 ---
 
+## Migration vers les données TCGA réelles
+
+La migration est développée sur la branche **feature/tcga-real-data**. Les
+données patient brutes et transformées restent locales ; seuls le code et les
+rapports agrégés sont versionnés.
+
+~~~bash
+python -m pip install -r requirements-dev.txt
+python -m pytest
+python -m src.tcga_preprocessing
+~~~
+
+Le protocole de cohorte et les règles anti-fuite sont détaillés dans
+[docs/tcga_cohort_definition.md](docs/tcga_cohort_definition.md). Le pipeline
+génère localement **data/processed/tcga_brca_clinical_cohort.csv** et produit
+**reports/tcga_cohort_summary.md** pour revue.
+
+---
+
 *Mokdata Portfolio | Chams-Eddine | 2026*

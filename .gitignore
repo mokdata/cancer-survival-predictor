@@ -19,3 +19,12 @@ venv/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Derived patient-level datasets — stored locally only
+data/processed/
+
+# Test and coverage artefacts
+.pytest_cache/
+.coverage
+htmlcov/
+
