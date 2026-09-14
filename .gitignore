@@ -1,0 +1,21 @@
+# Raw datasets — stored locally only
+data/raw/
+
+# Local project archives
+archives/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Local secrets and configuration
+.env
+
+# IDE and operating system
+.vscode/
+.DS_Store
+Thumbs.db
