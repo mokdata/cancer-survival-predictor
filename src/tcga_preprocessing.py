@@ -22,6 +22,7 @@ DEFAULT_INPUT = Path(
 DEFAULT_OUTPUT = Path("data/processed/tcga_brca_clinical_cohort.csv")
 DEFAULT_REPORT = Path("reports/tcga_cohort_summary.md")
 DEFAULT_HORIZON_MONTHS = 36.0
+RARE_CATEGORY_MIN_COUNT = 10
 
 MISSING_VALUES: Final = [
     "",
@@ -115,6 +116,8 @@ class CohortSummary:
     known_survivors_at_horizon: int
     censored_by_horizon: int
     zero_duration_rows: int
+    zero_duration_events: int
+    zero_duration_censored: int
     ages_out_of_range_set_missing: int
     negative_node_counts_set_missing: int
     positive_nodes_above_examined: int
@@ -435,6 +438,18 @@ def prepare_tcga_cohort(
         known_survivors_at_horizon=int(target.eq(1).sum()),
         censored_by_horizon=int(target.isna().sum()),
         zero_duration_rows=int(cohort["duration_months"].eq(0).sum()),
+        zero_duration_events=int(
+            (
+                cohort["duration_months"].eq(0)
+                & cohort["event"].eq(1)
+            ).sum()
+        ),
+        zero_duration_censored=int(
+            (
+                cohort["duration_months"].eq(0)
+                & cohort["event"].eq(0)
+            ).sum()
+        ),
         ages_out_of_range_set_missing=invalid_ages,
         negative_node_counts_set_missing=(
             invalid_examined + invalid_positive
@@ -462,6 +477,37 @@ def _markdown_table(
     ]
     lines.extend("| " + " | ".join(row) + " |" for row in clean_rows)
     return "\n".join(lines)
+
+
+def _categorical_level_rows(
+    cohort: pd.DataFrame,
+    rare_category_min_count: int = RARE_CATEGORY_MIN_COUNT,
+) -> list[list[object]]:
+    """Summarise categorical levels without exposing patient-level rows."""
+    if rare_category_min_count <= 0:
+        raise ValueError("rare_category_min_count must be strictly positive.")
+
+    cohort_size = len(cohort)
+    rows: list[list[object]] = []
+    for feature in CATEGORICAL_FEATURES:
+        levels = cohort[feature].astype("string").fillna("<missing>")
+        counts = levels.value_counts(dropna=False)
+        ordered_counts = sorted(
+            counts.items(),
+            key=lambda item: (-int(item[1]), str(item[0])),
+        )
+        for level, count_value in ordered_counts:
+            count = int(count_value)
+            cohort_share = count / cohort_size if cohort_size else 0.0
+            rare_flag = (
+                "—"
+                if level == "<missing>"
+                else "Yes" if count < rare_category_min_count else "No"
+            )
+            rows.append(
+                [feature, level, count, f"{cohort_share:.1%}", rare_flag]
+            )
+    return rows
 
 
 def build_cohort_report(
@@ -524,8 +570,18 @@ def build_cohort_report(
             ]
         )
 
+    categorical_level_rows = _categorical_level_rows(cohort)
+
     quality_rows = [
         ["Zero-month OS durations retained for review", summary.zero_duration_rows],
+        [
+            "Zero-month OS durations with observed death",
+            summary.zero_duration_events,
+        ],
+        [
+            "Zero-month OS durations with censored observation",
+            summary.zero_duration_censored,
+        ],
         [
             "Ages outside [18, 120] set to missing",
             summary.ages_out_of_range_set_missing,
@@ -585,6 +641,30 @@ def build_cohort_report(
             "No imputation, category grouping, scaling or encoding is fitted "
             "during cohort construction. Those transformations must be fitted "
             "inside each training fold.",
+            "",
+            "## Categorical level distributions",
+            "",
+            (
+                "Levels with fewer than "
+                f"{RARE_CATEGORY_MIN_COUNT} patients are flagged as rare "
+                "candidates. Missing values are listed separately."
+            ),
+            "",
+            _markdown_table(
+                [
+                    "Feature",
+                    "Level",
+                    "Patients",
+                    "Cohort share",
+                    f"Below {RARE_CATEGORY_MIN_COUNT} patients",
+                ],
+                categorical_level_rows,
+            ),
+            "",
+            (
+                "These flags are descriptive only. Frequency-based grouping "
+                "must be fitted inside each training fold."
+            ),
             "",
             "## Aggregate data-quality flags",
             "",

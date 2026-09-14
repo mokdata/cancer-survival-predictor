@@ -31,7 +31,8 @@ must not be used for clinical decisions.
 - Event value 0: living/censored.
 - A missing duration or event excludes the patient from the survival cohort.
 - A negative duration is treated as a blocking data-quality error.
-- A zero-month duration is retained but flagged for review.
+- A zero-month duration is retained, split by death/censoring in the
+  aggregate report and reviewed before modelling.
 
 ## Secondary 36-month endpoint
 
@@ -74,6 +75,10 @@ Cohort preparation standardises fields but does not learn imputation values,
 rare-category groupings, scaling parameters or encodings. Those operations must
 be fitted inside each training fold or inside a scikit-learn pipeline after the
 train/test split.
+
+The aggregate report lists every categorical level and flags levels represented
+by fewer than 10 patients. This is descriptive only: frequency-based grouping is
+performed later from the training fold, never from the complete cohort.
 
 The raw event, survival duration and the secondary 36-month label are never
 predictors. Patient-level grouping must be respected in every split.

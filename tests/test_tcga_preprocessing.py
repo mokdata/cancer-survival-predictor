@@ -169,6 +169,32 @@ def test_categories_and_stages_are_normalised() -> None:
     assert first["sample_type"] == "primary_solid_tumor"
 
 
+def test_report_breaks_down_zero_durations_and_lists_categories() -> None:
+    raw = make_raw_frame()
+    duration_column = "Overall Survival (Months)"
+    raw.loc[0, duration_column] = "0"
+    raw.loc[2, duration_column] = "0"
+
+    cohort, summary = prepare_tcga_cohort(raw)
+    report = build_cohort_report(cohort, summary)
+
+    assert summary.zero_duration_rows == 2
+    assert summary.zero_duration_events == 1
+    assert summary.zero_duration_censored == 1
+    assert (
+        summary.zero_duration_rows
+        == summary.zero_duration_events + summary.zero_duration_censored
+    )
+    assert "## Categorical level distributions" in report
+    assert "| er_status | positive | 2 | 50.0% | Yes |" in report
+    assert "| ajcc_stage | IIA | 1 | 25.0% | Yes |" in report
+    assert "| Zero-month OS durations with observed death | 1 |" in report
+    assert (
+        "| Zero-month OS durations with censored observation | 1 |"
+        in report
+    )
+
+
 def test_unknown_event_status_fails_loudly() -> None:
     raw = make_raw_frame()
     raw.loc[0, "Overall Survival Status"] = "PENDING"
